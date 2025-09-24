@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <title>Dev Mint (Owner)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body style="font-family: ui-sans-serif; max-width: 720px; margin: 24px auto;">
+  <h2>Dev Mint (Owner only)</h2>
+  <button id="btnConnect">🔌 Connect Wallet</button>
+  <pre id="log" style="background:#111;color:#0f0;padding:12px;border-radius:8px;min-height:140px;margin-top:16px;"></pre>
+
+  <p>to: <input id="to" style="width:420px" placeholder="0x..." /></p>
+  <p>id: <input id="id" type="number" min="1" max="6" value="1" />
+     amount: <input id="amt" type="number" min="1" value="3" />
+     <button id="btnMint">devMint</button></p>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.umd.min.js"></script>
+  <script src="./config.js"></script>
+  <script>
+    const log = (m)=>document.getElementById('log').textContent += m + "\\n";
+    let provider, signer, me, NFT;
+
+    const NFT_ABI = [
+      "function devMint(address to,uint256 id,uint256 amount)"
+    ];
+
+    document.getElementById("btnConnect").onclick = async () => {
+      if (!window.ethereum) return alert("No wallet");
+      provider = new ethers.BrowserProvider(window.ethereum);
+      const net = await provider.send("eth_chainId", []);
+      if (Number(net) !== CFG.CHAIN_ID) alert("โปรดสลับไป OP Sepolia");
+      signer = await provider.getSigner();
+      me = await signer.getAddress();
+      NFT = new ethers.Contract(CFG.NFT_ADDRESS, NFT_ABI, signer);
+      log("Connected: " + me);
+    };
+
+    document.getElementById("btnMint").onclick = async () => {
+      const to = document.getElementById("to").value || me;
+      const id = Number(document.getElementById("id").value);
+      const amt = Number(document.getElementById("amt").value);
+      const tx = await NFT.devMint(to, id, amt);
+      log("tx: " + tx.hash);
+      await tx.wait();
+      log("✅ minted");
+    };
+  </script>
+</body>
+</html>

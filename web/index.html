@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADElEQVR42mP8/5+BFwAI/gN3q1jI5QAAAABJRU5ErkJggg==">
+  <meta charset="utf-8" />
+  <title>RPS V2 (ERC1155)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    :root {
+      --bg:#ffffff;
+      --text:#0f172a;
+      --muted:#6b7280;
+      --border:#e5e7eb;
+      --primary:#2563eb;
+      --success:#16a34a;
+      --error:#dc2626;
+      --normal:#3b82f6;
+      --rare:#a855f7;
+    }
+    .dark {
+      --bg:#0b1220;
+      --text:#e5e7eb;
+      --muted:#9ca3af;
+      --border:#1f2937;
+      --primary:#60a5fa;
+      --success:#22c55e;
+      --error:#ef4444;
+      --normal:#60a5fa;
+      --rare:#c084fc;
+    }
+    body { font-family: ui-sans-serif, system-ui, -apple-system; max-width: 1024px; margin: 24px auto; background:var(--bg); color:var(--text); }
+    #log { background:#111;color:#0f0;padding:12px;border-radius:8px;min-height:120px;margin-top:16px;white-space:pre-wrap; }
+    .toolbar button, .toolbar a { margin-right:8px; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap:14px; margin-top:14px; }
+    .card { border:1px solid var(--border); border-radius:12px; padding:10px; background:var(--bg); }
+    .card img { width:100%; aspect-ratio: 2 / 3; object-fit:contain; background:#0b0c0f10; border-radius:8px; display:block; }
+    .muted { color:var(--muted); font-size:12px; }
+    .badge { font-size:12px; padding:2px 6px; border-radius:999px; background:#eef2ff; display:inline-block; margin-left:6px; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding:10px; border-bottom:1px solid var(--border); text-align:left; }
+    th { background:#f9fafb; }
+    .section { margin-top:24px; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    dialog::backdrop { background: rgba(0,0,0,.25); }
+    dialog { border:0; border-radius:12px; padding:16px; }
+    .dialog-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap:12px; }
+    .chip { display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:2px 8px; border:1px solid var(--border); border-radius:999px; }
+  
+    /* Toasts */
+    #toastDock { position: fixed; top: 20px; right: 20px; display:flex; flex-direction:column; gap:10px; z-index: 9999; }
+    .toast { min-width: 220px; max-width: 360px; padding: 10px 12px; border-radius: 10px; color:#fff; box-shadow: 0 6px 18px rgba(0,0,0,.18); animation: slideIn .25s ease-out; }
+    .toast.info { background:#2563eb; }
+    .toast.success { background:#16a34a; }
+    .toast.error { background:#dc2626; }
+    @keyframes slideIn { from { transform: translateY(-10px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+
+    /* Inventory change animations */
+    @keyframes gainFlash { 0%{box-shadow:0 0 0 0 rgba(34,197,94,.6);} 100%{box-shadow:0 0 0 16px rgba(34,197,94,0);} }
+    @keyframes lossFlash { 0%{box-shadow:0 0 0 0 rgba(239,68,68,.6);} 100%{box-shadow:0 0 0 16px rgba(239,68,68,0);} }
+    .gain { animation: gainFlash 900ms ease-out; }
+    .loss { animation: lossFlash 900ms ease-out; }
+    @keyframes popIn { 0% { transform: scale(.96); opacity:.7; } 100% { transform: scale(1); opacity:1; } }
+    .pop { animation: popIn 220ms ease-out; }
+        
+    .card.normal { border-color: var(--normal); }
+    .card.rare   { border-color: var(--rare); }
+    .badge.win  { background: rgba(22,163,74,.12); color: var(--success); border:1px solid rgba(22,163,74,.35); }
+    .badge.lose { background: rgba(220,38,38,.12); color: var(--error); border:1px solid rgba(220,38,38,.35); }
+    .badge.tie  { background: rgba(37,99,235,.12); color: var(--primary); border:1px solid rgba(37,99,235,.35); }
+    </style>
+
+
+</head>
+<body>
+  <div id="toastDock"></div>
+  <h1>RPS V2 (ERC1155)</h1>
+
+  <div class="toolbar">
+    <span id="netBadge" class="net-badge">Checking network…</span>
+    <button id="btnSwitchNet" class="btn-secondary" style="display:none">Switch to OP Sepolia</button>
+    <button id="btnConnect">🔌 Connect Wallet</button>
+    <span id="who"></span>
+  </div>
+  
+  <!-- Inspect Match (Floating Modal) -->
+<div id="inspectModal" class="join-modal hidden">
+  <div class="join-box">
+    <div class="join-head">
+      <strong>Match Detail <span id="insMatchNo">#</span></strong>
+      <button id="insClose" aria-label="Close">Close</button>
+    </div>
+
+    <div id="insBody" style="padding:16px">
+      <div class="muted">Loading…</div>
+    </div>
+  </div>
+</div>
+
+  <div class="toolbar" style="margin-top:12px;">
+    <button id="btnDark">🌗 Dark: OFF</button>
+    <button id="btnLang">🇹🇭/🇬🇧 TH</button>
+    <button id="btnExport">📥 Export CSV</button>
+    <button id="btnAuto">🔁 Auto: OFF</button>
+    <button id="btnSfx">🔊 SFX: ON</button>
+	<button id="btnRealtime">🔔 Realtime: ON</button>
+     <select id="rtSpeed" title="Watcher interval">
+      <option value="3000">Fast 3s</option>
+      <option value="6000" selected>Normal 6s</option>
+      <option value="12000">Slow 12s</option>
+     </select>
+    <button id="btnApprove">✅ Approve Game</button>
+    <button id="btnBalances">📊 Show Balances</button>
+    <button id="btnShowCards">🖼️ Show My Cards</button>
+    <button id="btnListOpen">📜 List Open Matches</button>
+    <button id="btnMyStats">🏆 My Stats</button>
+    <a href="./dev-mint.html" target="_blank">Dev Mint</a>
+    <a href="./dev-tools.html" target="_blank">Dev Tools</a>
+  </div>
+
+  <pre id="log"></pre>
+
+  <hr />
+
+  <div class="section">
+    <h3>🆕 Create Match</h3>
+    <div class="row">
+      <label>Token ID (1..6):
+        <input id="cm_token" type="number" min="1" max="6" value="1" />
+      </label>
+      <button id="btnCreate">Create</button>
+      <span class="muted">หรือคลิก “Create Match” บนการ์ดของคุณก็ได้</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>🫱 Join Match</h3>
+    <div class="row">
+      <label>Match ID: <input id="jm_id" type="number" value="0" /></label>
+      <label>Token ID (1..6): <input id="jm_token" type="number" min="1" max="6" value="2" /></label>
+      <button id="btnJoin">Join</button>
+      <span class="muted">* สำหรับทดสอบแบบกรอกเอง — ปกติให้กด Join จากตารางด้านล่าง</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>🔎 Inspect Match</h3>
+    <div class="row">
+      <label>Match ID: <input id="im_id" type="number" value="0" /></label>
+      <button id="btnInspect">Inspect</button>
+    </div>
+  </div>
+
+<h3>📡 Recent Matches</h3>
+<table id="recentTbl" style="display:none; width:100%; border-collapse:collapse; border:1px solid var(--border)">
+  <thead>
+    <tr>
+      <th style="text-align:left;padding:6px;border-bottom:1px solid var(--border)">ID</th>
+      <th style="text-align:left;padding:6px;border-bottom:1px solid var(--border)">P1</th>
+      <th style="text-align:left;padding:6px;border-bottom:1px solid var(--border)">P2</th>
+      <th style="text-align:left;padding:6px;border-bottom:1px solid var(--border)">Result</th>
+    </tr>
+  </thead>
+  <tbody id="recentBody"></tbody>
+</table>
+
+  <div class="section">
+    <h3>🖼️ My Cards</h3>
+    <div id="cardsGrid" class="grid"></div>
+    <div class="muted">ถ้ารูปไม่ขึ้น ให้ตรวจว่า <code>baseURI</code> เป็น <code>ipfs://&lt;YOUR_CID_META&gt;/</code> และใน JSON มีคีย์ <code>image</code>.</div>
+  </div>
+
+  <div class="section">
+    <h3>🕳️ Open Matches (รอคน Join)</h3>
+    <div class="muted">เรา “ไม่แสดงการ์ดของผู้สร้างแมตช์” เพื่อความแฟร์ — กด Join แล้วเลือกการ์ดจากคลังของคุณ ระบบจะคัดเฉพาะใบที่เข้าเงื่อนไขให้เอง</div>
+    <div class="row" style="gap:12px;margin:8px 0 6px;">
+    <label><input type="checkbox" id="filterMine" checked> ซ่อนห้องของฉัน</label>
+    <label><input type="checkbox" id="filterJoinable" checked> เฉพาะห้องที่ฉันเข้าได้</label>
+    </div>
+	<table id="openTbl" style="display:none">
+      <thead><tr><th>ID</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody id="openBody"></tbody>
+    </table>
+  </div>
+
+<div class="row" style="gap:8px;margin:8px 0;">
+  <button id="btnExportCSV">Export CSV</button>
+  <button id="btnExportJSON">Export JSON</button>
+</div>
+
+
+  <div class="section">
+    <h3>🏆 My Stats</h3>
+    <div class="row">
+      <span id="statSummary" class="chip">—</span>
+	  <div id="statGroup" class="stats-box" style="margin:6px 0 10px 0;"></div>
+      <button id="btnStatsRefresh">Refresh</button>
+    </div>
+    <table id="statTbl" style="display:none; margin-top:10px;">
+      <thead><tr><th>Match</th><th>Role</th><th>Result</th></tr></thead>
+      <tbody id="statBody"></tbody>
+    </table>
+  </div>
+
+
+<!-- Join Card Picker (Floating Modal) -->
+<div id="joinModal" class="join-modal hidden">
+  <div class="join-box">
+    <div class="join-head">
+      <strong>เลือกการ์ดสำหรับแมตช์ <span id="joinMatchNo">#</span></strong>
+      <button id="joinClose" aria-label="Close">Close</button>
+    </div>
+    <div id="joinGrid" class="join-grid"></div>
+    <div id="joinHint" class="muted" style="padding:0 16px 16px;"></div>
+  </div>
+</div>
+
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.umd.min.js"></script>
+  <script src="./config.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "name": "rps-v2-1155",
+  "version": "2.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "build": "hardhat compile",
+    "serve": "npx --yes serve -l 5173 web",
+    "test": "hardhat test",
+    "deploy:op": "hardhat run scripts/deploy-all.js --network op_sepolia",
+    "verify:op": "hardhat run scripts/verify-all.js --network op_sepolia",
+    "gas": "hardhat test",
+    "coverage": "hardhat coverage"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "5.0.0",
+    "dotenv": "16.4.5",
+    "hardhat": "2.26.3",
+    "hardhat-gas-reporter": "^2.3.0",
+    "solidity-coverage": "^0.8.16"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "5.0.2"
+  }
+}

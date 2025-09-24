@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Dev Tools - RPS V2</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- ใช้ไฟล์ที่มีจริง -->
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    .term{background:#0b0c0f;color:#59f068;border-radius:10px;padding:12px;height:240px;overflow:auto}
+    button{margin-right:8px}
+  </style>
+</head>
+<body>
+  <h1>Dev Tools</h1>
+
+  <div class="row" style="gap:8px;margin-bottom:8px;">
+    <button id="btnConnect">เชื่อมต่อกระเป๋า</button>
+    <button id="btnApprove">✅ อนุมัติให้เกมใช้การ์ด</button>
+    <button id="btnCancelAll">Cancel ALL My Open Matches</button>
+  </div>
+
+  <!-- ให้ connect() จาก app.js เขียนข้อความได้ -->
+  <div id="who" class="muted" style="margin:6px 0 8px;"></div>
+
+  <!-- พื้นที่ log ให้ app.js ใช้ (อย่า redeclare log ในหน้านี้) -->
+  <pre id="log" class="term"></pre>
+
+  <!-- ลำดับโหลดสคริปต์: ethers -> config -> app.js (มี ABI/ฟังก์ชันครบ) -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.umd.min.js"></script>
+  <script src="./config.js"></script>
+  <script src="./app.js"></script>
+
+  <script>
+    // ใช้ log จาก app.js โดยตรง (อย่า redeclare)
+    const ZERO_ADDR = (window.ZERO ?? (ethers && ethers.ZeroAddress) ?? "0x0000000000000000000000000000000000000000");
+
+    // ปุ่มพื้นฐาน
+    document.getElementById("btnConnect").onclick = () =>
+      connect().catch(e => (window.log ? log(e.message||String(e)) : console.error(e)));
+
+    document.getElementById("btnApprove").onclick = () =>
+      approveGame().catch(e => (window.log ? log(e.message||String(e)) : console.error(e)));
+
+    // ยกเลิกทุกแมตช์ที่เราเป็นคนสร้าง และยังไม่มี p2 และยังไม่ resolved
+    async function cancelAllMyOpenMatches() {
+      try {
+        if (!window.GAME || !window.me) await connect();
+
+        const total = Number(await GAME.nextMatchId());
+        let cancelled = 0;
+
+        for (let i = 0; i < total; i++) {
+          const m = await GAME.matches(i);
+
+          const p1 = (m.p1 ?? "").toString().toLowerCase();
+          const p2 = (m.p2 ?? "").toString().toLowerCase();
+          const isMine = p1 === me.toLowerCase();
+          const isZero = p2 === ZERO_ADDR.toLowerCase();
+          const isOpen = !m.resolved && isZero;
+
+          if (!(isMine && isOpen)) continue;
+
+          try {
+            const tx = await GAME.cancelMatch(i);
+            window.log && log(`cancel #${i}: ${tx.hash}`);
+            await tx.wait();
+            cancelled++;
+          } catch (e) {
+            window.log && log(`fail #${i}: ${e.reason || e.message || String(e)}`);
+          }
+        }
+        window.log && log(`done (${cancelled} cancelled)`);
+      } catch (e) {
+        window.log ? log(e.message || String(e)) : console.error(e);
+      }
+    }
+
+    document.getElementById("btnCancelAll").onclick = () =>
+      cancelAllMyOpenMatches().catch(e => (window.log ? log(e.message||String(e)) : console.error(e)));
+  </script>
+</body>
+</html>
