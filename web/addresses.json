@@ -1,0 +1,7 @@
+{
+  "op_sepolia": {
+    "chainId": "11155420",
+    "RPSCards1155": "0xEC7a7c7031aAcD88ad26D87B34Ca129CAb46EF9b",
+    "RPSGame1155": "0x9B987dc68B5c09Af9BE8737A850708EC19310fB9"
+  }
+}
