@@ -1,5 +1,5 @@
 // app.js — header (fixed order)
-
+const CFG = window.CFG;
 // ===== Preferences (persist) =====
 const PREF = {
   dark: "rps_pref_dark",
