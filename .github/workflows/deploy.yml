@@ -1,0 +1,47 @@
+# .github/workflows/deploy.yml (หรือไฟล์ deploy ปัจจุบันของคุณ)
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to OP Sepolia
+        run: npx hardhat run scripts/deploy.js --network op_sepolia
+        env:
+          PRIVATE_KEY:     ${{ secrets.PRIVATE_KEY }}
+          OP_SEPOLIA_URL:  ${{ secrets.OP_SEPOLIA_URL }}
+          BASE_URI:        ${{ secrets.BASE_URI }}
+
+      # === Debug: list web directory ===
+      - name: List web dir
+        run: |
+          echo "Workspace: $GITHUB_WORKSPACE"
+          ls -la
+          echo "--- web ---"
+          ls -la web || true
+
+      - name: Upload addresses.json
+        if: ${{ hashFiles('web/addresses.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: addresses
+          path: web/addresses.json
+
+      - name: Commit addresses.json back
+        if: ${{ hashFiles('web/addresses.json') != '' }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web/addresses.json
+          git commit -m "ci: update deployed addresses [skip ci]" || echo "No changes to commit"
+          git push
